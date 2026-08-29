@@ -17,10 +17,16 @@ Key behaviors:
 import base64
 import os
 import re
+import sys
 import tempfile
 import time
 from io import BytesIO
 from urllib.parse import unquote, urlparse
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
@@ -68,6 +74,11 @@ def build_chrome_options(runtime_profile_dir):
     options.add_argument("--remote-debugging-port=0")
     options.add_argument(f"--user-data-dir={runtime_profile_dir}")
     options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument(
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/128.0.0.0 Safari/537.36"
+    )
     options.add_argument("--force-color-profile=srgb")
     options.add_argument("--hide-scrollbars")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
