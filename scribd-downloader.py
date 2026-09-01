@@ -1068,6 +1068,7 @@ def release_page_batch(driver, page_numbers):
 def save_pdf_pages_individually(
     driver,
     filename,
+    site="scribd",
     timeout_seconds=DEFAULT_CDP_TIMEOUT_SECONDS,
 ):
     from pypdf import PdfReader, PdfWriter
@@ -1077,20 +1078,19 @@ def save_pdf_pages_individually(
         timeout_seconds,
     )
 
+    page_selector = ".outer_page" if site == "scribd" else ".pf, [data-page-number], .pc"
+
     page_count = driver.execute_script(
         """
-        const candidates = ['.outer_page', '.pf', '[data-page-number]', '#page-container > div', '.page-content-wrapper > div', '[id*="page"]'];
-        for (const selector of candidates) {
-            const count = document.querySelectorAll(selector).length;
-            if (count > 0) return count;
-        }
-        return 0;
-        """
+        const selector = arguments[0];
+        return document.querySelectorAll(selector).length;
+        """,
+        page_selector,
     )
 
     if page_count <= 0:
         raise RuntimeError(
-            "No printable document page elements found."
+            f"No printable document page elements found ({page_selector})."
         )
 
     print(
@@ -1126,17 +1126,9 @@ def save_pdf_pages_individually(
             page_info = driver.execute_script(
                 """
                 const targetIndex = arguments[0];
+                const pageSelector = arguments[1];
 
-                const candidates = ['.outer_page', '.pf', '[data-page-number]', '#page-container > div', '.page-content-wrapper > div', '[id*="page"]'];
-                let pages = [];
-                for (const selector of candidates) {
-                    const found = document.querySelectorAll(selector);
-                    if (found.length > 0) {
-                        pages = Array.from(found);
-                        break;
-                    }
-                }
-
+                const pages = Array.from(document.querySelectorAll(pageSelector));
                 const target = pages[targetIndex];
 
                 if (!target) {
@@ -1204,7 +1196,7 @@ def save_pdf_pages_individually(
                                 exact !important;
                         }
 
-                        .outer_page, .pf, [data-page-number], #page-container > div, .page-content-wrapper > div, [id*="page"] {
+                        ${pageSelector} {
                             display: none !important;
                         }
 
@@ -1244,6 +1236,7 @@ def save_pdf_pages_individually(
                 };
                 """,
                 index,
+                page_selector,
             )
 
             if not page_info:
@@ -1475,6 +1468,7 @@ def main():
             save_pdf_pages_individually(
                 driver,
                 pdf_filename,
+                site=site,
             )
         )
 
