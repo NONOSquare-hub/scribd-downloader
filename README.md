@@ -24,11 +24,9 @@
   <a href="https://buymeacoffee.com/mrsami">
     <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee">
   </a>
-  <a href="https://github.com/sponsors/fullstackusama">
-    <img src="https://img.shields.io/badge/Sponsor-ea4aaa?style=for-the-badge&logo=github-sponsors&logoColor=white" alt="GitHub Sponsors">
-  </a>
-  <a href="https://github.com/fullstackusama/scribd-downloader/stargazers">
-    <img src="https://img.shields.io/github/stars/fullstackusama/scribd-downloader?style=for-the-badge&logo=github" alt="GitHub Stars">
+<p align="center">
+  <a href="https://github.com/NONOSquare-hub/scribd-downloader/stargazers">
+    <img src="https://img.shields.io/github/stars/NONOSquare-hub/scribd-downloader?style=for-the-badge&logo=github" alt="GitHub Stars">
   </a>
 </p>
 
@@ -36,27 +34,26 @@
 
 ## Features
 
-- **One-click download** - Just paste the Scribd URL and get your PDF
-- **Supports both Scribd URL styles** - Works with `/document/...` and legacy `/doc/...` links
-- **Runs in background** - Headless Chrome, no browser window pops up
-- **No scrolling required** - Loads Scribd page data directly instead of simulating page-by-page scrolling
-- **Clean PDFs** - No cookie banners, toolbars, or watermarks
+- **Multi-Site Document Downloader** - Download documents from both **Scribd** (`scribd.com`) and **StuDocu** (`studocu.com`, `studocu.vn`)
+- **One-click download** - Paste the document URL and get your clean PDF
+- **Bypass Cloudflare & Anti-Bot** - Custom User-Agent, CDP `navigator.webdriver` stealth patch, and persistent session profiles
+- **Cốc Cốc & Chrome Support** - Auto-detects Cốc Cốc Browser and Google Chrome on Windows
+- **Direct Browser Connection (Port 9222)** - Connects straight into your running browser window so you never get stuck on Cloudflare Turnstile verification
+- **StuDocu Unblur & Auto-Scroll** - Automatically removes paywall overlays, unblurs text/images, and lazy-scrolls all document pages
+- **Clean PDFs** - No cookie banners, paywalls, toolbars, or watermarks
 - **Bounded-memory export** - Keeps only a configurable batch of fully loaded pages in Chrome at once
 - **Disk-spooled merge** - Writes each rendered page to temporary storage before combining the final PDF with `pypdf`
-- **Large document support** - Verified with image-heavy documents containing up to 2,552 pages
-- **Better math rendering** - Preserves Scribd layout classes needed by equations and SVG content
-- **Exact pagination** - Validates that every Scribd page produces exactly one PDF sheet
-- **Dynamic page size** - Detects each rendered page's dimensions instead of forcing one fixed sheet size
-- **Auto filename** - PDF named after the document URL automatically
-- **No login required** - Works without Scribd account
+- **Large document support** - Handles large image-heavy documents easily
+- **Auto filename** - PDF automatically named after the document URL
+- **No login required** - Works without paid accounts
 
 ---
 
 ## Requirements
 
 - Python 3.10 or higher
-- Google Chrome browser installed
-- Chrome WebDriver (auto-managed by Selenium)
+- Cốc Cốc Browser or Google Chrome installed
+- Selenium (`pip install -r requirements.txt`)
 
 ---
 
@@ -64,7 +61,7 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/fullstackusama/scribd-downloader.git
+   git clone https://github.com/NONOSquare-hub/scribd-downloader.git
    cd scribd-downloader
    ```
 
@@ -77,20 +74,27 @@
 
 ## Usage
 
+### Option 1: Direct Run
 1. **Run the script**
    ```bash
    python scribd-downloader.py
    ```
 
-2. **Paste the Scribd document URL** when prompted:
+2. **Paste the document URL** (Scribd or StuDocu):
+   ```text
+   Input link (Scribd / StuDocu): https://www.scribd.com/document/123456789/Document-Title
    ```
-   Input link Scribd: https://www.scribd.com/document/123456789/Document-Title
+   or StuDocu link:
+   ```text
+   Input link (Scribd / StuDocu): https://www.studocu.vn/vn/document/.../12345678
    ```
 
-   Legacy Scribd URLs also work:
-   ```
-   Input link Scribd: https://www.scribd.com/doc/123456789/Document-Title
-   ```
+---
+
+### Option 2: Connect directly to your active browser (Recommended for StuDocu Cloudflare)
+1. Run **`chay-chrome-debug.bat`** (or launch browser with `--remote-debugging-port=9222`).
+2. Open the document link in the browser window and solve Cloudflare if prompted.
+3. Run `python scribd-downloader.py` in your terminal — the script will attach directly to your browser tab and export the PDF!
 
 3. **Wait for the download** - The script will:
    - Open the document in headless Chrome
