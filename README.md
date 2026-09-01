@@ -34,18 +34,20 @@
 
 ## Features
 
-- **Multi-Site Document Downloader** - Download documents from both **Scribd** (`scribd.com`) and **StuDocu** (`studocu.com`, `studocu.vn`)
-- **One-click download** - Paste the document URL and get your clean PDF
-- **Bypass Cloudflare & Anti-Bot** - Custom User-Agent, CDP `navigator.webdriver` stealth patch, and persistent session profiles
+- **One-click download** - Just paste the Scribd URL and get your PDF
+- **Supports both Scribd URL styles** - Works with `/document/...` and legacy `/doc/...` links
 - **Cốc Cốc & Chrome Support** - Auto-detects Cốc Cốc Browser and Google Chrome on Windows
-- **Direct Browser Connection (Port 9222)** - Connects straight into your running browser window so you never get stuck on Cloudflare Turnstile verification
-- **StuDocu Unblur & Auto-Scroll** - Automatically removes paywall overlays, unblurs text/images, and lazy-scrolls all document pages
-- **Clean PDFs** - No cookie banners, paywalls, toolbars, or watermarks
+- **Direct Browser Connection (Port 9222)** - Connects straight into your active browser window
+- **Bypass Cloudflare & Anti-Bot** - Custom User-Agent, CDP `navigator.webdriver` stealth patch, and persistent session profiles
+- **Clean PDFs** - No cookie banners, toolbars, or watermarks
 - **Bounded-memory export** - Keeps only a configurable batch of fully loaded pages in Chrome at once
 - **Disk-spooled merge** - Writes each rendered page to temporary storage before combining the final PDF with `pypdf`
-- **Large document support** - Handles large image-heavy documents easily
-- **Auto filename** - PDF automatically named after the document URL
-- **No login required** - Works without paid accounts
+- **Large document support** - Verified with image-heavy documents containing up to 2,552 pages
+- **Better math rendering** - Preserves Scribd layout classes needed by equations and SVG content
+- **Exact pagination** - Validates that every Scribd page produces exactly one PDF sheet
+- **Dynamic page size** - Detects each rendered page's dimensions instead of forcing one fixed sheet size
+- **Auto filename** - PDF named after the document URL automatically
+- **No login required** - Works without Scribd account
 
 ---
 
@@ -53,7 +55,7 @@
 
 - Python 3.10 or higher
 - Cốc Cốc Browser or Google Chrome installed
-- Selenium (`pip install -r requirements.txt`)
+- Chrome WebDriver (auto-managed by Selenium)
 
 ---
 
@@ -74,27 +76,20 @@
 
 ## Usage
 
-### Option 1: Direct Run
 1. **Run the script**
    ```bash
    python scribd-downloader.py
    ```
 
-2. **Paste the document URL** (Scribd or StuDocu):
+2. **Paste the Scribd document URL** when prompted:
    ```text
-   Input link (Scribd / StuDocu): https://www.scribd.com/document/123456789/Document-Title
-   ```
-   or StuDocu link:
-   ```text
-   Input link (Scribd / StuDocu): https://www.studocu.vn/vn/document/.../12345678
+   Input link Scribd: https://www.scribd.com/document/123456789/Document-Title
    ```
 
----
-
-### Option 2: Connect directly to your active browser (Recommended for StuDocu Cloudflare)
-1. Run **`chay-chrome-debug.bat`** (or launch browser with `--remote-debugging-port=9222`).
-2. Open the document link in the browser window and solve Cloudflare if prompted.
-3. Run `python scribd-downloader.py` in your terminal — the script will attach directly to your browser tab and export the PDF!
+   Legacy Scribd URLs also work:
+   ```text
+   Input link Scribd: https://www.scribd.com/doc/123456789/Document-Title
+   ```
 
 3. **Wait for the download** - The script will:
    - Open the document in headless Chrome

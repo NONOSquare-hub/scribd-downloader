@@ -83,7 +83,7 @@ DEFAULT_PAPER_WIDTH_INCHES = 7.25
 DEFAULT_PAPER_HEIGHT_INCHES = 10.5
 
 
-def build_chrome_options(runtime_profile_dir, is_studocu=False):
+def build_chrome_options(runtime_profile_dir):
     """Create Chrome options for reliable PDF generation."""
     options = Options()
 
@@ -98,8 +98,7 @@ def build_chrome_options(runtime_profile_dir, is_studocu=False):
     if coccoc_path:
         options.binary_location = coccoc_path
 
-    # Cloudflare Turnstile on StuDocu blocks headless mode. Use headful for StuDocu.
-    if HEADLESS_ENABLED and not is_studocu:
+    if HEADLESS_ENABLED:
         options.add_argument("--headless=new")
 
     options.add_argument("--window-size=1600,2200")
@@ -121,22 +120,6 @@ def build_chrome_options(runtime_profile_dir, is_studocu=False):
     return options
 
 
-def detect_url_type(url):
-    """
-    Detect document host from input URL.
-
-    Returns:
-        "scribd", "studocu", or "unknown"
-    """
-    parsed = urlparse(url)
-    netloc = parsed.netloc.lower()
-    if "scribd" in netloc:
-        return "scribd"
-    elif "studocu" in netloc:
-        return "studocu"
-    return "unknown"
-
-
 def convert_scribd_link(url):
     """
     Convert a Scribd document URL to the embed/content URL.
@@ -148,128 +131,14 @@ def convert_scribd_link(url):
     return f"https://www.scribd.com/embeds/{match.group(1)}/content"
 
 
-def convert_document_link(url):
-    """
-    Convert a document URL to printable URL based on site type.
-    """
-    site = detect_url_type(url)
-    if site == "scribd":
-        return convert_scribd_link(url)
-    elif site == "studocu":
-        if "studocu" in url:
-            return url
-        return "Invalid StuDocu URL"
-    return "Invalid Document URL"
-
-
 def get_filename_from_url(url):
     """
     Build an output filename from URL path segments.
     """
     parsed = urlparse(url)
     path = parsed.path.rstrip("/")
-    segments = [s for s in path.split("/") if s]
-    if not segments:
-        return "document.pdf"
-
-    last_segment = segments[-1]
-    if last_segment.isdigit() and len(segments) > 1:
-        last_segment = segments[-2]
-
+    last_segment = path.split("/")[-1] if path else "scribd_document"
     return f"{unquote(last_segment)}.pdf"
-
-
-def prepare_studocu_document_for_print(driver):
-    """
-    Unblur Studocu document pages, remove paywalls, popups, and banners.
-    """
-    result = driver.execute_script(
-        """
-        const selectorsToRemove = [
-            '#paywall',
-            '.wrapper-paywall',
-            '[class*="paywall-wrapper"]',
-            '[class*="paywall-container"]',
-            '.ab-testing-banner',
-            '[class*="cookie-banner"]',
-            '[class*="CookieBanner"]'
-        ];
-
-        let removedCount = 0;
-        selectorsToRemove.forEach(selector => {
-            document.querySelectorAll(selector).forEach(el => {
-                el.remove();
-                removedCount++;
-            });
-        });
-
-        const existing = document.getElementById('studocu-unblur-styles');
-        if (existing) {
-            existing.remove();
-        }
-
-        const style = document.createElement('style');
-        style.id = 'studocu-unblur-styles';
-        style.textContent = `
-            [class*="blur"], .pf-blur, .blurred-page, .blurred {
-                filter: none !important;
-                -webkit-filter: none !important;
-                opacity: 1 !important;
-                user-select: auto !important;
-                pointer-events: auto !important;
-            }
-            .pf, .pc, [data-page-number], #page-container > div {
-                filter: none !important;
-                -webkit-filter: none !important;
-                opacity: 1 !important;
-                user-select: auto !important;
-                pointer-events: auto !important;
-                position: static !important;
-                margin-bottom: 20px !important;
-            }
-            body, html {
-                overflow: visible !important;
-                height: auto !important;
-            }
-        `;
-        document.head.appendChild(style);
-
-        let unblurredCount = 0;
-        document.querySelectorAll('*').forEach(el => {
-            if (el.style.filter && el.style.filter.includes('blur')) {
-                el.style.filter = 'none';
-                unblurredCount++;
-            }
-            if (el.style.webkitFilter && el.style.webkitFilter.includes('blur')) {
-                el.style.webkitFilter = 'none';
-                unblurredCount++;
-            }
-        });
-
-        return { removedCount, unblurredCount };
-        """
-    )
-    print(f"Studocu paywall/overlays removed ({result['removedCount']} elements).")
-    print(f"Unblurred {result['unblurredCount']} inline elements.")
-
-
-def scroll_studocu_document(driver, scroll_delay_seconds=0.2):
-    """
-    Scroll window down incrementally to trigger Studocu lazy-loading for all document pages.
-    """
-    print("Scrolling Studocu document to load all pages...")
-    step = 800
-    pos = 0
-    current_height = driver.execute_script("return document.body.scrollHeight;")
-    while pos < current_height:
-        pos += step
-        driver.execute_script(f"window.scrollTo(0, {pos});")
-        time.sleep(scroll_delay_seconds)
-        current_height = driver.execute_script("return document.body.scrollHeight;")
-
-    time.sleep(1.0)
-    driver.execute_script("window.scrollTo(0, 0);")
-    print("Finished scrolling Studocu document.")
 
 
 def configure_command_timeout(driver, timeout_seconds):
@@ -1068,7 +937,6 @@ def release_page_batch(driver, page_numbers):
 def save_pdf_pages_individually(
     driver,
     filename,
-    site="scribd",
     timeout_seconds=DEFAULT_CDP_TIMEOUT_SECONDS,
 ):
     from pypdf import PdfReader, PdfWriter
@@ -1078,19 +946,15 @@ def save_pdf_pages_individually(
         timeout_seconds,
     )
 
-    page_selector = ".outer_page" if site == "scribd" else ".pf, [data-page-number], .pc"
-
     page_count = driver.execute_script(
         """
-        const selector = arguments[0];
-        return document.querySelectorAll(selector).length;
-        """,
-        page_selector,
+        return document.querySelectorAll('.outer_page').length;
+        """
     )
 
     if page_count <= 0:
         raise RuntimeError(
-            f"No printable document page elements found ({page_selector})."
+            "No .outer_page elements found."
         )
 
     print(
@@ -1126,9 +990,13 @@ def save_pdf_pages_individually(
             page_info = driver.execute_script(
                 """
                 const targetIndex = arguments[0];
-                const pageSelector = arguments[1];
 
-                const pages = Array.from(document.querySelectorAll(pageSelector));
+                const pages = Array.from(
+                    document.querySelectorAll(
+                        '.outer_page'
+                    )
+                );
+
                 const target = pages[targetIndex];
 
                 if (!target) {
@@ -1153,8 +1021,10 @@ def save_pdf_pages_individually(
                 /*
                  * Mark the target instead of relying on nth-child.
                  */
-                document.querySelectorAll('[data-export-target]').forEach((el) => {
-                    el.removeAttribute('data-export-target');
+                pages.forEach((page) => {
+                    page.removeAttribute(
+                        'data-export-target'
+                    );
                 });
 
                 target.setAttribute(
@@ -1196,11 +1066,13 @@ def save_pdf_pages_individually(
                                 exact !important;
                         }
 
-                        ${pageSelector} {
+                        .outer_page {
                             display: none !important;
                         }
 
-                        [data-export-target="true"] {
+                        .outer_page[
+                            data-export-target="true"
+                        ] {
                             display: block !important;
                             visibility: visible !important;
 
@@ -1236,7 +1108,6 @@ def save_pdf_pages_individually(
                 };
                 """,
                 index,
-                page_selector,
             )
 
             if not page_info:
@@ -1355,21 +1226,19 @@ def get_persistent_profile_dir():
 
 
 def main():
-    """Run the exporter interactively for Scribd or StuDocu."""
-    input_url = input("Input link (Scribd / StuDocu): ").strip()
+    """Run the exporter interactively."""
+    input_url = input("Input link Scribd: ").strip()
 
-    site = detect_url_type(input_url)
-    converted_url = convert_document_link(input_url)
+    converted_url = convert_scribd_link(input_url)
     pdf_filename = get_filename_from_url(input_url)
 
-    print(f"Site detected: {site.upper()}")
-    print(f"Link target: {converted_url}")
+    print(f"Link embed: {converted_url}")
     print(f"Output filename: {pdf_filename}")
 
-    if converted_url in ("Invalid Scribd URL", "Invalid StuDocu URL", "Invalid Document URL"):
-        print("Error: Please provide a valid document URL from Scribd or StuDocu.")
-        print("Example Scribd:  https://www.scribd.com/document/123456789/Document-Title")
-        print("Example StuDocu: https://www.studocu.com/vn/document/.../12345678")
+    if converted_url == "Invalid Scribd URL":
+        print("Error: Please provide a valid Scribd document URL")
+        print("Example: https://www.scribd.com/document/123456789/Document-Title")
+        print("Example: https://www.scribd.com/doc/123456789/Document-Title")
         raise SystemExit(1)
 
     profile_dir = get_persistent_profile_dir()
@@ -1378,10 +1247,7 @@ def main():
     try:
         print("\nStarting Chrome browser...")
 
-        options = build_chrome_options(
-            profile_dir,
-            is_studocu=(site == "studocu")
-        )
+        options = build_chrome_options(profile_dir)
 
         driver = webdriver.Chrome(
             options=options
@@ -1415,21 +1281,9 @@ def main():
         hide_cookie_dialogs(driver)
         print("Cookie dialogs hidden.")
 
-        if site == "studocu":
-            scroll_studocu_document(driver)
-            prepare_studocu_document_for_print(driver)
-        else:
-            prepare_document_for_print(driver)
-            inject_print_styles(driver)
-
         total_pages = driver.execute_script(
             """
-            const candidates = ['.outer_page', '.pf', '[data-page-number]', '#page-container > div', '.page-content-wrapper > div', '[id*="page"]'];
-            for (const selector of candidates) {
-                const count = document.querySelectorAll(selector).length;
-                if (count > 0) return count;
-            }
-            return 0;
+            return document.querySelectorAll('.outer_page').length;
             """
         )
 
@@ -1438,7 +1292,8 @@ def main():
                 "No printable document pages were detected."
             )
 
-        print(f"Detected {total_pages} document pages.")
+        prepare_document_for_print(driver)
+        inject_print_styles(driver)
 
         print(
             f"\nSaving PDF as: {pdf_filename}"
@@ -1468,7 +1323,6 @@ def main():
             save_pdf_pages_individually(
                 driver,
                 pdf_filename,
-                site=site,
             )
         )
 
